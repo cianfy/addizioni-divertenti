@@ -17,3 +17,9 @@ export enum CharacterMood {
   Sad = 'SAD',
   Wow = 'WOW',
 }
+
+export enum DifficultyLevel {
+  Easy = 'EASY',
+  Medium = 'MEDIUM',
+  Hard = 'HARD',
+}

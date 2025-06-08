@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import ProblemDisplay from './components/ProblemDisplay';
 import NumberPad from './components/NumberPad';
 import FeedbackDisplay from './components/FeedbackDisplay';
 import CharacterDisplay from './components/CharacterDisplay';
-import { GameState, FunFact, CharacterMood } from './types';
-import { ITEM_EMOJIS, MAX_NUMBER_FOR_ADDITION } from './constants';
+import { GameState, FunFact, CharacterMood, DifficultyLevel } from './types';
+import { ITEM_EMOJIS } from './constants';
 import { getFunFactAboutNumber } from './services/geminiService';
 
 const App: React.FC = () => {
@@ -20,12 +21,33 @@ const App: React.FC = () => {
   const [characterMood, setCharacterMood] = useState<CharacterMood>(CharacterMood.Thinking);
   const [emoji1, setEmoji1] = useState<string>(ITEM_EMOJIS[0]);
   const [emoji2, setEmoji2] = useState<string>(ITEM_EMOJIS[1]);
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>(DifficultyLevel.Easy);
 
   const getRandomEmoji = (): string => ITEM_EMOJIS[Math.floor(Math.random() * ITEM_EMOJIS.length)];
 
   const generateNewProblem = useCallback(() => {
-    const newNum1 = Math.floor(Math.random() * (MAX_NUMBER_FOR_ADDITION + 1));
-    const newNum2 = Math.floor(Math.random() * (MAX_NUMBER_FOR_ADDITION + 1 - newNum1));
+    let newNum1: number, newNum2: number;
+
+    switch (difficulty) {
+      case DifficultyLevel.Medium:
+        if (Math.random() < 0.5) { // One single digit, one 10-19
+          newNum1 = Math.floor(Math.random() * 10); // 0-9
+          newNum2 = Math.floor(Math.random() * 10) + 10; // 10-19
+        } else {
+          newNum1 = Math.floor(Math.random() * 10) + 10; // 10-19
+          newNum2 = Math.floor(Math.random() * 10); // 0-9
+        }
+        break;
+      case DifficultyLevel.Hard:
+        newNum1 = Math.floor(Math.random() * 10) + 10; // 10-19
+        newNum2 = Math.floor(Math.random() * 10) + 10; // 10-19
+        break;
+      case DifficultyLevel.Easy:
+      default:
+        newNum1 = Math.floor(Math.random() * 10); // 0-9
+        newNum2 = Math.floor(Math.random() * 10); // 0-9
+        break;
+    }
     
     setNum1(newNum1);
     setNum2(newNum2);
@@ -35,18 +57,19 @@ const App: React.FC = () => {
     setGameState(GameState.Playing);
     setFunFact(null);
     setCharacterMood(CharacterMood.Thinking);
-    setEmoji1(getRandomEmoji());
+    
+    let newEmoji1 = getRandomEmoji();
     let newEmoji2 = getRandomEmoji();
-    while (newEmoji2 === emoji1) {
+    while (newEmoji2 === newEmoji1) {
         newEmoji2 = getRandomEmoji();
     }
+    setEmoji1(newEmoji1);
     setEmoji2(newEmoji2);
-  }, [emoji1]);
+  }, [difficulty]); // emoji1 was in dependency array, but it caused re-generation too often. Difficulty is the key driver.
 
   useEffect(() => {
     generateNewProblem();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [generateNewProblem]); // generateNewProblem will change if difficulty changes
 
   const isInputDisabled = gameState === GameState.Correct || gameState === GameState.ShowingFact || isLoadingFact;
 
@@ -75,7 +98,7 @@ const App: React.FC = () => {
       setGameState(GameState.Incorrect);
       setFeedbackMessage(`Riprova! ${correctAnswer > userAnswerNum ? 'Più grande!' : 'Più piccolo!'}`);
       setCharacterMood(CharacterMood.Sad);
-      setUserAnswer(''); // Clear answer for retry, but allow new input
+      setUserAnswer(''); 
     }
   };
 
@@ -95,6 +118,23 @@ const App: React.FC = () => {
     setFeedbackMessage(null); 
   };
   
+  const handleDifficultyChange = (newDifficulty: DifficultyLevel) => {
+    setDifficulty(newDifficulty);
+    // generateNewProblem will be called by useEffect due to dependency change
+  };
+
+  const DifficultyButton: React.FC<{level: DifficultyLevel, current: DifficultyLevel, onClick: (level: DifficultyLevel) => void, children: React.ReactNode}> = 
+    ({level, current, onClick, children}) => (
+    <button
+      onClick={() => onClick(level)}
+      className={`py-1 px-2 xs:py-1.5 xs:px-3 rounded-md text-xs xs:text-sm font-semibold transition-all
+                  ${current === level 
+                    ? 'bg-brand-primary text-white shadow-lg scale-105' 
+                    : 'bg-white text-brand-dark hover:bg-gray-100 shadow-sm'}`}
+    >
+      {children}
+    </button>
+  );
 
   return (
     <div className="bg-white/80 shadow-2xl rounded-xl p-2 text-center flex flex-col h-full max-h-[98vh] w-full max-w-xs xs:max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl overflow-hidden">
@@ -102,6 +142,11 @@ const App: React.FC = () => {
         <h1 className="text-2xl xs:text-3xl sm:text-4xl font-bold text-brand-dark drop-shadow-md">Addizioni Divertenti!</h1>
         <div className="mt-1 text-lg xs:text-xl sm:text-2xl font-semibold text-white bg-brand-secondary py-1 px-2 sm:px-3 rounded-full inline-block shadow-sm">
           Punteggio: {score}
+        </div>
+        <div className="mt-1 xs:mt-2 flex justify-center space-x-1 xs:space-x-2">
+          <DifficultyButton level={DifficultyLevel.Easy} current={difficulty} onClick={handleDifficultyChange}>Facile</DifficultyButton>
+          <DifficultyButton level={DifficultyLevel.Medium} current={difficulty} onClick={handleDifficultyChange}>Medio</DifficultyButton>
+          <DifficultyButton level={DifficultyLevel.Hard} current={difficulty} onClick={handleDifficultyChange}>Difficile</DifficultyButton>
         </div>
       </header>
       
@@ -134,7 +179,7 @@ const App: React.FC = () => {
         )}
 
         {gameState !== GameState.ShowingFact && (
-          <div className="mt-1 sm:mt-2 w-full max-w-xs">
+          <div className="mt-1 sm:mt-2 w-full flex justify-center">
             <NumberPad
               onNumberClick={handleNumberInput}
               onClearClick={handleClearInput}

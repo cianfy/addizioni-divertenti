@@ -1,5 +1,6 @@
 {
   "name": "Addizioni Divertenti",
   "description": "Un'applicazione web divertente per aiutare i bambini della scuola primaria, classe prima, ad imparare le addizioni in modo interattivo e coinvolgente. Include feedback visivo e curiosità generate dall'IA.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "prompt": ""
 }
